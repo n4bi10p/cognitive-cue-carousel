@@ -25,12 +25,12 @@ const ResultsSummary = ({ results, onRestart }: ResultsSummaryProps) => {
     return `${Math.round((value / total) * 100)}%`;
   };
 
-  // Calculate total back-to-back matches
-  const totalNBackTargets = results.totalNBackMatches || (results.nBackCorrect + results.nBackMissed);
-  
-  // Calculate total special images
-  const totalPMTargets = results.totalPMCues || (results.pmCueCorrect + results.pmCueMissed);
-  
+  // Compute totals
+  const totalTrials = results.totalImages;
+  const totalPMTargets = results.totalPMCues;
+  // Use the actual number of n-back matches as the target count
+  const totalNBackTargets = results.totalNBackMatches;
+
   return (
     <Card className="w-full max-w-3xl">
       <CardHeader className="text-center">

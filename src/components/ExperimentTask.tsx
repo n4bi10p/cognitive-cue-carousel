@@ -645,6 +645,7 @@ useEffect(() => {
         const hasResponse = trialResponses.length > 0;
 
         if (isMatch) {
+          // Count this as a 2-back match
           blockResults.totalNBackMatches++;
           if (hasResponse) {
             blockResults.nBackCorrect++;
@@ -657,15 +658,22 @@ useEffect(() => {
       }
     });
 
-    // Calculate PM cue performance
-    pmCues.forEach((cue, index) => {
+    // Calculate PM cue performance and false alarms by iterating through all trials
+    trials.forEach((trial, index) => {
       const trialResponses = responses[index] || [];
       const hasResponse = trialResponses.length > 0;
-
-      if (hasResponse) {
-        blockResults.pmCueCorrect++;
+      if (trial.isPMCue) {
+        if (hasResponse) {
+          blockResults.pmCueCorrect++;
+        } else {
+          blockResults.pmCueMissed++;
+        }
       } else {
-        blockResults.pmCueMissed++;
+        // Exclude responses to 2-back matches from PM false alarms
+        const isMatch2Back = index >= 2 && trial.src === trials[index - 2].src;
+        if (hasResponse && !isMatch2Back) {
+          blockResults.pmCueFalseAlarms++;
+        }
       }
     });
 
@@ -697,8 +705,8 @@ useEffect(() => {
       totalNBackMatches += block.totalNBackMatches;
     });
 
-    const nBackAccuracy = totalNBackMatches > 0 ? (totalNBackCorrect / totalNBackMatches * 100).toFixed(2) : '0.00';
-    const pmCueAccuracy = totalPMCues > 0 ? (totalPMCueCorrect / totalPMCues * 100).toFixed(2) : '0.00';
+    const nBackAccuracy = totalNBackMatches > 0 ? `${(totalNBackCorrect / totalNBackMatches * 100).toFixed(2)}%` : '0%';
+    const pmCueAccuracy = totalPMCues > 0 ? `${(totalPMCueCorrect / totalPMCues * 100).toFixed(2)}%` : '0%';
 
     return {
       nBackCorrect: totalNBackCorrect,
@@ -816,6 +824,19 @@ useEffect(() => {
       window.removeEventListener('keydown', handleKeyPress);
     };
   }, [handleKeyPress]);
+  
+  // Set up keypress event listener
+  useEffect(() => {
+    const handleDebugToggle = (e: KeyboardEvent) => {
+      if (e.key === 'b' || e.key === 'B') {
+        setIsDebugMode(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleDebugToggle);
+    return () => {
+      window.removeEventListener('keydown', handleDebugToggle);
+    };
+  }, []);
   
   // Effect to manage trial progression
   useEffect(() => {
@@ -1040,7 +1061,6 @@ useEffect(() => {
                   <div className="flex flex-col items-center justify-center h-full">
                     <img
                       src={pmCues[currentPMCueIndex].src}
-                      alt={pmCues[currentPMCueIndex].id}
                       className="rounded-lg object-contain shadow-md"
                       style={{ width: '600px', height: '450px', maxWidth: '95vw', maxHeight: '80vh' }}
                     />
@@ -1057,7 +1077,6 @@ useEffect(() => {
                   <div className="flex flex-col items-center justify-center h-full">
                     <img
                       src={trials[currentTrialIndex].src}
-                      alt={trials[currentTrialIndex].id}
                       className="rounded-lg object-contain shadow-md"
                       style={{ width: '600px', height: '450px', maxWidth: '95vw', maxHeight: '80vh' }}
                     />
@@ -1192,12 +1211,28 @@ useEffect(() => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-gray-100 p-2 rounded text-sm">
+                <div className="bg-gray-100 p-2 rounded text-sm mb-4">
                   <div><strong>Current State:</strong></div>
                   <div>Session: {currentSession}, Block: {currentBlock + 1}, Phase: {currentPhase}</div>
                   <div>Trial: {currentTrialIndex + 1}/{trials.length}, PM Cue: {currentPMCueIndex + 1}/{pmCues.length}</div>
                   <div>Initialized: {initialized ? 'Yes' : 'No'}, Active: {isExperimentActive ? 'Yes' : 'No'}</div>
                 </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    // Evaluate current block (partial) before ending
+                    const currentPerf = evaluateBlockPerformance();
+                    const allSessions = [...blockResults, currentPerf];
+                    setIsExperimentActive(false);
+                    // Calculate final results including current session
+                    const results = calculateFinalResults(allSessions);
+                    setResults(results);
+                    onComplete(results);
+                  }}
+                >
+                  End Session
+                </Button>
               </div>
             )}
           </Card>
