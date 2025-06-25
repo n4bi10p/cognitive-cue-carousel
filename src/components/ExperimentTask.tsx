@@ -639,20 +639,20 @@ useEffect(() => {
 
     // Calculate n-back performance
     trials.forEach((trial, index) => {
-      if (index >= 2) { // Using 2-back
-        const isMatch = trial.src === trials[index - 2].src;
+      if (index >= 1) { // Using 1-back (back-to-back)
+        const isMatch = trial.src === trials[index - 1].src;
         const trialResponses = responses[index] || [];
-        const hasResponse = trialResponses.length > 0;
+        const pressedN = trialResponses.includes("n");
 
         if (isMatch) {
-          // Count this as a 2-back match
+          // Count this as a 1-back match
           blockResults.totalNBackMatches++;
-          if (hasResponse) {
+          if (pressedN) {
             blockResults.nBackCorrect++;
           } else {
             blockResults.nBackMissed++;
           }
-        } else if (hasResponse) {
+        } else if (pressedN) {
           blockResults.nBackFalseAlarms++;
         }
       }
@@ -661,17 +661,16 @@ useEffect(() => {
     // Calculate PM cue performance and false alarms by iterating through all trials
     trials.forEach((trial, index) => {
       const trialResponses = responses[index] || [];
-      const hasResponse = trialResponses.length > 0;
       if (trial.isPMCue) {
-        if (hasResponse) {
+        if (trialResponses.includes("z")) {
           blockResults.pmCueCorrect++;
         } else {
           blockResults.pmCueMissed++;
         }
       } else {
-        // Exclude responses to 2-back matches from PM false alarms
+        // Only count as PM false alarm if "z" was pressed on a non-PM-cue image (and not a 2-back match)
         const isMatch2Back = index >= 2 && trial.src === trials[index - 2].src;
-        if (hasResponse && !isMatch2Back) {
+        if (trialResponses.includes("z") && !isMatch2Back) {
           blockResults.pmCueFalseAlarms++;
         }
       }
